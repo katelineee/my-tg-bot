@@ -121,7 +121,7 @@ def get_manifest_keyboard():
 def ask_ai(prompt_text):
     try:
         response = client.models.generate_content(
-            model="gemini-2.0-flash-exp",
+            model="gemini-3.6-flash-lite",
             contents=prompt_text,
             config={"system_instruction": SYSTEM_PROMPT}
         )
