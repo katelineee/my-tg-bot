@@ -1,7 +1,7 @@
 import os
 import logging
 import json
-from datetime import datetime, time
+from datetime import time
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Updater, CommandHandler, MessageHandler, 
@@ -9,7 +9,7 @@ from telegram.ext import (
 )
 from google import genai
 
-# Ключи подтягиваются из защищенных настроек Render (Environment Variables)
+# Ключи подтягиваются из защищенных настроек Render
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
@@ -75,39 +75,61 @@ SYSTEM_PROMPT = """
 
 🌟 КЛЮЧЕВАЯ МЫСЛЬ:
 Одна простая фраза, которую можно запомнить.
-Говори как есть, без прикрас.
 
 🎯 МАНИФЕСТАЦИЯ:
 Короткая фраза, которую можно повторять про себя или вслух.
-Пусть она звучит как факт, а не как желание.
 
 ✨ АФФИРМАЦИИ (7-10 штук):
 Короткие, простые предложения.
-Каждая начинается с "Я" или безличная.
 Не больше 5-6 слов в каждой.
 Чередуй эмодзи.
 
 🌈 АФФИРМАЦИИ ДЛЯ ПОВТОРЕНИЯ:
 3-4 самые сильные и простые фразы.
-Те, которые хочется повторять в течение дня.
 
 ❓ ВОПРОС ДЛЯ ВИЗУАЛИЗАЦИИ:
 Один простой вопрос, который включает тело и чувства.
-Не абстрактный, а живой.
 
 💫 ЗАКРЫВАЮЩАЯ АФФИРМАЦИЯ:
 Одна фраза, которая остается в голове на весь день.
 
 🔑 КЛЮЧЕВОЙ ВЫВОД:
-То, что действительно важно запомнить.
 Одна простая истина.
 
 ГЛАВНОЕ ПРАВИЛО:
 Если фразу можно сказать на кухне за чашкой чая — значит, она правильная.
-Если фраза звучит как из книги по эзотерике — переформулируй.
 """
 
-# ============ ФУНКЦИИ ДЛЯ ЕЖЕДНЕВНЫХ НАСТРОЕК ============
+# ============ ФУНКЦИИ ============
+def get_main_keyboard():
+    keyboard = [
+        [InlineKeyboardButton("✨ Настройки & Манифестации", callback_data="menu_manifest")],
+        [InlineKeyboardButton("👁️ Практика Визуализации", callback_data="menu_visualize")],
+        [InlineKeyboardButton("🌿 Снять напряжение", callback_data="menu_ease_practice")],
+        [InlineKeyboardButton("🧠 Разобрать Тревогу", callback_data="menu_mindset")],
+        [InlineKeyboardButton("🗝️ Упражнение Мастер-Ключ", callback_data="menu_masterkey")],
+        [InlineKeyboardButton("📅 Ежедневные настройки", callback_data="menu_daily")]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+def get_manifest_keyboard():
+    keyboard = [
+        [InlineKeyboardButton("💰 Финансы", callback_data="manifest_money")],
+        [InlineKeyboardButton("🌿 Легкость", callback_data="manifest_ease")],
+        [InlineKeyboardButton("🚀 Масштаб", callback_data="manifest_career")],
+        [InlineKeyboardButton("❤️ Самоценность", callback_data="manifest_worth")],
+        [InlineKeyboardButton("🔙 В главное меню", callback_data="menu_main")]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+def ask_ai(prompt_text):
+    response = client.models.generate_content(
+        model="gemini-3.6-flash",
+        contents=prompt_text,
+        config={"system_instruction": SYSTEM_PROMPT}
+    )
+    return response.text
+
 def get_morning_affirmation():
     prompt = """
     Создай мощную утреннюю настройку на день.
@@ -148,36 +170,6 @@ def get_random_affirmation():
     3. 💡 Инсайт для размышления
     """
     return ask_ai(prompt)
-
-# ============ ОСНОВНЫЕ ФУНКЦИИ ============
-def get_main_keyboard():
-    keyboard = [
-        [InlineKeyboardButton("✨ Настройки & Манифестации", callback_data="menu_manifest")],
-        [InlineKeyboardButton("👁️ Практика Визуализации", callback_data="menu_visualize")],
-        [InlineKeyboardButton("🌿 Снять напряжение", callback_data="menu_ease_practice")],
-        [InlineKeyboardButton("🧠 Разобрать Тревогу", callback_data="menu_mindset")],
-        [InlineKeyboardButton("🗝️ Упражнение Мастер-Ключ", callback_data="menu_masterkey")],
-        [InlineKeyboardButton("📅 Ежедневные настройки", callback_data="menu_daily")]
-    ]
-    return InlineKeyboardMarkup(keyboard)
-
-def get_manifest_keyboard():
-    keyboard = [
-        [InlineKeyboardButton("💰 Финансы", callback_data="manifest_money")],
-        [InlineKeyboardButton("🌿 Легкость", callback_data="manifest_ease")],
-        [InlineKeyboardButton("🚀 Масштаб", callback_data="manifest_career")],
-        [InlineKeyboardButton("❤️ Самоценность", callback_data="manifest_worth")],
-        [InlineKeyboardButton("🔙 В главное меню", callback_data="menu_main")]
-    ]
-    return InlineKeyboardMarkup(keyboard)
-
-def ask_ai(prompt_text):
-    response = client.models.generate_content(
-        model="gemini-3.6-flash",
-        contents=prompt_text,
-        config={"system_instruction": SYSTEM_PROMPT}
-    )
-    return response.text
 
 # ============ КОМАНДЫ ============
 def start(update: Update, context: CallbackContext):
@@ -239,7 +231,6 @@ def random_affirmation(update: Update, context: CallbackContext):
 
 # ============ РАССЫЛКИ ============
 def send_daily_affirmations(context: CallbackContext):
-    """Утренняя рассылка"""
     if not user_ids:
         return
     
@@ -262,7 +253,6 @@ def send_daily_affirmations(context: CallbackContext):
                 save_subscribers(user_ids)
 
 def send_evening_reflection(context: CallbackContext):
-    """Вечерняя рассылка"""
     if not user_ids:
         return
     
@@ -291,7 +281,6 @@ def button_click(update: Update, context: CallbackContext):
     data = query.data
 
     if data == "menu_main":
-        # Перезапускаем start через редактирование
         text = (
             "🌟 *Проводник по пересборке состояния*\n\n"
             "Привет. Я помогу тебе выйти из выгорания, тревоги и гиперконтроля.\n"
@@ -437,7 +426,7 @@ def button_click(update: Update, context: CallbackContext):
     elif data == "menu_ease_practice":
         query.message.edit_text("🌿 *Разбираем напряжение...*", parse_mode="Markdown")
         try:
-            reply = ask_ai("Объясни, как выгорание и гиперконтроль мешают жить. Дай упражнение и 5 аффирмаций для расслабления. Яркие эмодзи. Говори простым языком. Без слова 'пахота'. Вместо 'пахоты' используй 'напряжение' или 'выгорание'.")
+            reply = ask_ai("Объясни, как выгорание и гиперконтроль мешают жить. Дай упражнение и 5 аффирмаций для расслабления. Яркие эмодзи. Говори простым языком. Без слова 'пахота'.")
             keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("📱 В главное меню", callback_data="menu_main")]])
             query.message.edit_text(
                 reply,
@@ -493,11 +482,9 @@ def handle_message(update: Update, context: CallbackContext):
 
 # ============ ЗАПУСК ============
 if __name__ == '__main__':
-    # Используем Updater вместо ApplicationBuilder
     updater = Updater(token=TELEGRAM_BOT_TOKEN, use_context=True)
     dp = updater.dispatcher
     
-    # Добавляем обработчики
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CommandHandler("subscribe", subscribe))
     dp.add_handler(CommandHandler("unsubscribe", unsubscribe))
@@ -506,7 +493,6 @@ if __name__ == '__main__':
     dp.add_handler(CallbackQueryHandler(button_click))
     dp.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     
-    # Настраиваем ежедневные рассылки
     jq = updater.job_queue
     
     if jq:
@@ -514,7 +500,6 @@ if __name__ == '__main__':
             send_daily_affirmations,
             time=time(hour=8, minute=0, second=0)
         )
-        
         jq.run_daily(
             send_evening_reflection,
             time=time(hour=21, minute=0, second=0)
@@ -529,6 +514,5 @@ if __name__ == '__main__':
     
     print("🌟 Бот запущен!")
     
-    # Запускаем бота
     updater.start_polling()
     updater.idle()
