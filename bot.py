@@ -19,7 +19,7 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-# ============ ОБНОВЛЕННЫЙ SYSTEM_PROMPT - без "пахоты" и абстракций ============
+# ============ ОБНОВЛЕННЫЙ SYSTEM_PROMPT ============
 SYSTEM_PROMPT = """
 Ты — фундаментальный наставник по работе с мышлением, законами внимания, визуализации и метафизике реального присутствия.
 
@@ -37,7 +37,6 @@ SYSTEM_PROMPT = """
 - Говори как мудрый друг, который прошел через это сам
 - Используй ПРОСТЫЕ, ЗЕМНЫЕ СЛОВА, которые понятны каждому
 - Никаких "ёмкостей", "расширений", "потоков" — говори прямо
-- Используй метафоры из жизни: "как дышать", "как пить воду"
 - Будь конкретным, а не абстрактным
 - НЕ ИСПОЛЬЗУЙ СЛОВО "ПАХОТА" — вместо него используй "выгорание" или "напряжение"
 
@@ -80,7 +79,7 @@ def get_main_keyboard():
     keyboard = [
         [InlineKeyboardButton("✨ Настройки & Манифестации", callback_data="menu_manifest")],
         [InlineKeyboardButton("👁️ Практика Визуализации", callback_data="menu_visualize")],
-        [InlineKeyboardButton("🌿 Снять напряжение", callback_data="menu_ease_practice")],  # Изменено
+        [InlineKeyboardButton("🌿 Снять напряжение", callback_data="menu_ease_practice")],
         [InlineKeyboardButton("🧠 Разобрать Тревогу", callback_data="menu_mindset")],
         [InlineKeyboardButton("🗝️ Упражнение Мастер-Ключ", callback_data="menu_masterkey")]
     ]
@@ -96,9 +95,10 @@ def get_manifest_keyboard():
     ]
     return InlineKeyboardMarkup(keyboard)
 
+# ============ ВАЖНО: ПРАВИЛЬНАЯ МОДЕЛЬ ============
 def ask_ai(prompt_text):
     response = client.models.generate_content(
-        model="gemini-3.6-flash",  # Рабочая модель
+        model="gemini-3.6-flash",  # <--- ТОЛЬКО ЭТА МОДЕЛЬ! НЕ grok-beta
         contents=prompt_text,
         config={"system_instruction": SYSTEM_PROMPT}
     )
@@ -107,7 +107,7 @@ def ask_ai(prompt_text):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = (
         "🌟 *Проводник по пересборке состояния*\n\n"
-        "Привет. Я помогу тебе выйти из выгорания, тревоги и гиперконтроля.\n"  # Изменено
+        "Привет. Я помогу тебе выйти из выгорания, тревоги и гиперконтроля.\n"
         "Выбери направление или просто напиши, что тебя беспокоит."
     )
     if update.message:
@@ -177,7 +177,7 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.message.edit_text(f"❌ Ошибка: {e}")
 
     elif data == "menu_ease_practice":
-        await query.message.edit_text("🌿 *Разбираем напряжение...*", parse_mode="Markdown")  # Изменено
+        await query.message.edit_text("🌿 *Разбираем напряжение...*", parse_mode="Markdown")
         try:
             reply = ask_ai("Объясни, как выгорание и гиперконтроль мешают жить. Дай упражнение и 5 аффирмаций для расслабления. Яркие эмодзи. Говори простым языком. Без слова 'пахота'. Вместо 'пахоты' используй 'напряжение' или 'выгорание'.")
             keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("📱 В главное меню", callback_data="menu_main")]])
