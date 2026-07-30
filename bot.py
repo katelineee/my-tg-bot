@@ -1,7 +1,7 @@
 import os
 import logging
 import json
-from datetime import datetime, time
+from datetime import time
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, MessageHandler, 
@@ -21,7 +21,7 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-# ============ ДОБАВЛЕНО: ХРАНЕНИЕ ПОДПИСЧИКОВ ============
+# ============ ХРАНЕНИЕ ПОДПИСЧИКОВ ============
 SUBSCRIBERS_FILE = "subscribers.json"
 
 def load_subscribers():
@@ -41,103 +41,83 @@ def save_subscribers(subscribers):
 
 user_ids = load_subscribers()
 
-# ============ ОБНОВЛЕННЫЙ SYSTEM_PROMPT ============
+# ============ ОБНОВЛЕННЫЙ SYSTEM_PROMPT - без "пахоты" ============
 SYSTEM_PROMPT = """
 Ты — фундаментальный наставник по работе с мышлением, законами внимания, визуализации и метафизике реального присутствия.
 
 ТВОЯ МЕТОДОЛОГИЧЕСКАЯ БАЗА:
 1. «Система Мастер-Ключ» (Чарльз Хенел): Внешний мир — точное отражение ментальной причины. Меняешь ментальный образ — меняется материя.
 2. Проводник Алины Костыль & Прикладная Метафизика:
-   - Растождествление с выгоранием, режимом "пахоты", гиперконтролем и чувством долга.
+   - Растождествление с выгоранием, гиперконтролем и чувством долга.
    - Выявление скрытых выгод сидеть в тревоге или нехватке.
    - Перевод из дефицита в состояние Авторства и Внутреннего Права.
 3. Невилл Годдард & Джо Диспенза:
    - Принцип "Feeling is the Secret" и "Living from the End".
 4. Снятие важности (Трансерфинг): Убирание судорожной цепкости.
 
-ТВОИ ИНСТРУМЕНТЫ:
-- Давать емкие, глубокие аффирмации и манифестации БЕЗ пустой воды.
-- Задавать глубокие вопросы для ведения пользователя по визуализации.
-- Общаться как мудрый соратник и метафизический коуч.
+ТВОЙ СТИЛЬ ОБЩЕНИЯ:
+- Говори как мудрый друг, который прошел через это сам
+- Используй ПРОСТЫЕ, ЗЕМНЫЕ СЛОВА, которые понятны каждому
+- Никаких "ёмкостей", "расширений", "потоков", "пахоты" — говори прямо
+- Используй метафоры из жизни: "как дышать", "как пить воду", "как смотреть на закат"
+- Будь конкретным, а не абстрактным
+- Эмоционально, но без пафоса
+
+ЧЕМ ЗАМЕНИТЬ СЛОВО "ПАХОТА":
+❌ "Пахота" → ✅ "Выгорание" или "Постоянное напряжение" или "Бесконечная работа"
+
+ПРИМЕРЫ УДАЧНЫХ ФРАЗ вместо абстракций:
+❌ "Моя емкость растет" → ✅ "Я спокойно принимаю любые деньги"
+❌ "Финансовое расширение" → ✅ "У меня всегда есть столько, сколько нужно"
+❌ "Внутреннее право" → ✅ "Я разрешаю себе получать больше"
+❌ "Состояние присутствия" → ✅ "Я чувствую себя уверенно и спокойно"
+❌ "Материя подстраивается" → ✅ "Жизнь приносит мне то, что я действительно хочу"
+❌ "Пахота" → ✅ "Выгорание" или "Постоянное напряжение"
 
 ФОРМАТ ОТВЕТА (строго соблюдать):
 
 🌟 КЛЮЧЕВАЯ МЫСЛЬ:
-Одно-два предложения, задающие тон.
+Одна простая фраза, которую можно запомнить.
+Говори как есть, без прикрас.
 
 🎯 МАНИФЕСТАЦИЯ:
-Короткая, мощная формулировка для чтения вслух.
-Используй *звездочки* для выделения ключевых слов.
+Короткая фраза, которую можно повторять про себя или вслух.
+Пусть она звучит как факт, а не как желание.
 
-✨ АФФИРМАЦИИ (минимум 5-7 штук):
-Каждая с новой строки.
-Короткие, ритмичные, запоминающиеся.
-Чередуй с разными эмодзи для визуального разнообразия.
+✨ АФФИРМАЦИИ (7-10 штук):
+Короткие, простые предложения.
+Каждая начинается с "Я" или безличная.
+Не больше 5-6 слов в каждой.
+Чередуй эмодзи.
 
 🌈 АФФИРМАЦИИ ДЛЯ ПОВТОРЕНИЯ:
-3-4 самые сильные аффирмации, выделенные отдельно.
+3-4 самые сильные и простые фразы.
+Те, которые хочется повторять в течение дня.
 
 ❓ ВОПРОС ДЛЯ ВИЗУАЛИЗАЦИИ:
-1 глубокий вопрос для размышления.
+Один простой вопрос, который включает тело и чувства.
+Не абстрактный, а живой.
 
 💫 ЗАКРЫВАЮЩАЯ АФФИРМАЦИЯ:
-Мощная фраза для запоминания на день.
+Одна фраза, которая остается в голове на весь день.
 
 🔑 КЛЮЧЕВОЙ ВЫВОД:
-Одна фраза для повторения в течение дня.
+То, что действительно важно запомнить.
+Одна простая истина.
 
-ВАЖНО:
-- Используй РАЗНЫЕ ЭМОДЗИ для визуального разнообразия
-- Аффирмации должны быть КОРОТКИМИ (4-7 слов)
-- Общий объем: 15-20 строк
-- Текст должен быть РИТМИЧНЫМ для легкого запоминания
+ГЛАВНОЕ ПРАВИЛО:
+Если фразу можно сказать на кухне за чашкой чая — значит, она правильная.
+Если фраза звучит как из книги по эзотерике — переформулируй.
 """
-
-# ============ ДОБАВЛЕНО: ФУНКЦИИ ДЛЯ ЕЖЕДНЕВНЫХ НАСТРОЕК ============
-def get_morning_affirmation():
-    prompt = """
-    Создай мощную утреннюю настройку на день.
-    Включи:
-    1. 🌅 Приветствие нового дня
-    2. 🎯 Основной фокус дня
-    3. ✨ 5-7 аффирмаций для начала дня
-    4. 🔑 Ключевая фраза дня для повторения
-    5. ❓ Вопрос для размышления
-    Используй яркие эмодзи, сделай текст вдохновляющим.
-    """
-    return ask_ai(prompt)
-
-def get_evening_reflection():
-    prompt = """
-    Создай вечернюю практику благодарности и пересборки.
-    Включи:
-    1. 🌙 Приветствие завершению дня
-    2. 🙏 5 аффирмаций благодарности
-    3. ✨ Фокус на том, что получилось
-    4. 🌈 Перепрограммирование негатива
-    5. 💫 Настройка на завтрашний день
-    Используй яркие эмодзи.
-    """
-    return ask_ai(prompt)
-
-def get_random_affirmation():
-    prompt = """
-    Дай случайную мощную аффирмацию дня.
-    1. 🔥 Ключевая аффирмация
-    2. ✨ 3-5 поддерживающих аффирмаций
-    3. 💡 Инсайт для размышления
-    """
-    return ask_ai(prompt)
 
 # ============ ОСНОВНЫЕ ФУНКЦИИ ============
 def get_main_keyboard():
     keyboard = [
         [InlineKeyboardButton("✨ Настройки & Манифестации", callback_data="menu_manifest")],
         [InlineKeyboardButton("👁️ Практика Визуализации", callback_data="menu_visualize")],
-        [InlineKeyboardButton("🌿 Сбросить Пахоту", callback_data="menu_ease_practice")],
+        [InlineKeyboardButton("🌿 Снять напряжение", callback_data="menu_ease_practice")],  # Изменено
         [InlineKeyboardButton("🧠 Разобрать Тревогу", callback_data="menu_mindset")],
         [InlineKeyboardButton("🗝️ Упражнение Мастер-Ключ", callback_data="menu_masterkey")],
-        # ДОБАВЛЕНО: кнопка ежедневных настроек
         [InlineKeyboardButton("📅 Ежедневные настройки", callback_data="menu_daily")]
     ]
     return InlineKeyboardMarkup(keyboard)
@@ -160,7 +140,49 @@ def ask_ai(prompt_text):
     )
     return response.text
 
-# ============ ДОБАВЛЕНО: КОМАНДЫ ПОДПИСКИ ============
+# ============ ФУНКЦИИ ДЛЯ ЕЖЕДНЕВНЫХ НАСТРОЕК ============
+def get_morning_affirmation():
+    prompt = """
+    Создай мощную утреннюю настройку на день.
+    Говори простым языком, как живой человек.
+    Без слова "пахота". Используй "выгорание" или "напряжение".
+    Включи:
+    1. 🌅 Приветствие нового дня
+    2. 🎯 Основной фокус дня
+    3. ✨ 5-7 аффирмаций для начала дня
+    4. 🔑 Ключевая фраза дня для повторения
+    5. ❓ Вопрос для размышления
+    Используй яркие эмодзи.
+    """
+    return ask_ai(prompt)
+
+def get_evening_reflection():
+    prompt = """
+    Создай вечернюю практику благодарности.
+    Говори просто и тепло, как вечерний разговор.
+    Без слова "пахота".
+    Включи:
+    1. 🌙 Приветствие завершению дня
+    2. 🙏 5 аффирмаций благодарности
+    3. ✨ Фокус на том, что получилось
+    4. 🌈 Перепрограммирование негатива
+    5. 💫 Настройка на завтрашний день
+    Используй яркие эмодзи.
+    """
+    return ask_ai(prompt)
+
+def get_random_affirmation():
+    prompt = """
+    Дай случайную мощную аффирмацию дня.
+    Говори простым языком.
+    Без слова "пахота".
+    1. 🔥 Ключевая аффирмация
+    2. ✨ 3-5 поддерживающих аффирмаций
+    3. 💡 Инсайт для размышления
+    """
+    return ask_ai(prompt)
+
+# ============ КОМАНДЫ ПОДПИСКИ ============
 async def subscribe(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     user_ids.add(user_id)
@@ -202,7 +224,7 @@ async def random_affirmation(update: Update, context: ContextTypes.DEFAULT_TYPE)
     except Exception as e:
         await update.message.reply_text(f"❌ Ошибка: {e}")
 
-# ============ ДОБАВЛЕНО: ФУНКЦИИ РАССЫЛОК ============
+# ============ ФУНКЦИИ РАССЫЛОК ============
 async def send_daily_affirmations(context: ContextTypes.DEFAULT_TYPE):
     """Утренняя рассылка"""
     if not user_ids:
@@ -249,7 +271,30 @@ async def send_evening_reflection(context: ContextTypes.DEFAULT_TYPE):
                 user_ids.discard(user_id)
                 save_subscribers(user_ids)
 
-# ============ ДОБАВЛЕНО: ОБРАБОТКА НОВЫХ КНОПОК ============
+# ============ ОСНОВНЫЕ ОБРАБОТЧИКИ ============
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = (
+        "🌟 *Проводник по пересборке состояния*\n\n"
+        "Привет. Я помогу тебе выйти из выгорания, тревоги и гиперконтроля.\n"  # Изменено
+        "Выбери направление или просто напиши, что тебя беспокоит.\n\n"
+        "📌 *Доступные команды:*\n"
+        "/subscribe - подписаться на ежедневные настройки\n"
+        "/unsubscribe - отписаться от рассылок\n"
+        "/random - случайная аффирмация"
+    )
+    if update.message:
+        await update.message.reply_text(
+            text,
+            parse_mode="Markdown",
+            reply_markup=get_main_keyboard()
+        )
+    elif update.callback_query:
+        await update.callback_query.message.edit_text(
+            text,
+            parse_mode="Markdown",
+            reply_markup=get_main_keyboard()
+        )
+
 async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -258,7 +303,7 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data == "menu_main":
         await start(update, context)
 
-    # ДОБАВЛЕНО: меню ежедневных настроек
+    # ============ НОВЫЕ ОБРАБОТЧИКИ ============
     elif data == "menu_daily":
         await query.message.edit_text(
             "📅 *Ежедневные настройки*\n\n"
@@ -274,7 +319,6 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ])
         )
 
-    # ДОБАВЛЕНО: быстрая подписка через кнопку
     elif data == "subscribe_now":
         user_id = update.effective_user.id
         user_ids.add(user_id)
@@ -287,7 +331,6 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ])
         )
 
-    # ДОБАВЛЕНО: быстрая отписка через кнопку
     elif data == "unsubscribe_now":
         user_id = update.effective_user.id
         if user_id in user_ids:
@@ -301,7 +344,6 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ])
         )
 
-    # ДОБАВЛЕНО: случайная аффирмация из кнопки
     elif data == "random_affirmation":
         try:
             reply = get_random_affirmation()
@@ -316,7 +358,6 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             await query.message.edit_text(f"❌ Ошибка: {e}")
 
-    # ДОБАВЛЕНО: обновление утренней настройки
     elif data == "refresh_morning":
         try:
             reply = get_morning_affirmation()
@@ -331,7 +372,6 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             await query.message.edit_text(f"❌ Ошибка: {e}")
 
-    # ДОБАВЛЕНО: обновление вечерней рефлексии
     elif data == "refresh_evening":
         try:
             reply = get_evening_reflection()
@@ -346,7 +386,7 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             await query.message.edit_text(f"❌ Ошибка: {e}")
 
-    # ============ ОСТАЛЬНЫЕ ОБРАБОТЧИКИ БЕЗ ИЗМЕНЕНИЙ ============
+    # ============ СТАРЫЕ ОБРАБОТЧИКИ ============
     elif data == "menu_manifest":
         await query.message.edit_text(
             "🎯 *Выбери тему для настройки:*",
@@ -356,12 +396,12 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif data.startswith("manifest_"):
         theme_map = {
-            "manifest_money": "Дай яркую манифестацию на финансовое расширение с 7-10 аффирмациями. Используй эмодзи для запоминания. Сделай текст ритмичным для повторения.",
-            "manifest_ease": "Дай настройку на отпускание гиперконтроля. 7-10 аффирмаций. Яркие эмодзи.",
-            "manifest_career": "Дай манифестацию на масштаб и проявленность. 7-10 аффирмаций.",
-            "manifest_worth": "Дай манифестацию на самоценность. 7-10 аффирмаций."
+            "manifest_money": "Дай яркую манифестацию на финансовое расширение с 7-10 аффирмациями. Говори простым языком, без абстракций. Без слова 'пахота'.",
+            "manifest_ease": "Дай настройку на отпускание гиперконтроля. 7-10 аффирмаций. Простой язык. Без 'пахоты'.",
+            "manifest_career": "Дай манифестацию на масштаб и проявленность. 7-10 аффирмаций. Простой язык. Без 'пахоты'.",
+            "manifest_worth": "Дай манифестацию на самоценность. 7-10 аффирмаций. Простой язык. Без 'пахоты'."
         }
-        prompt = theme_map.get(data, "Сформируй манифестацию.")
+        prompt = theme_map.get(data, "Сформируй манифестацию. Без слова 'пахота'.")
         
         await query.message.edit_text("🎯 *Формирую мощную настройку...*", parse_mode="Markdown")
         
@@ -382,7 +422,7 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "menu_visualize":
         await query.message.edit_text("👁️ *Готовлю визуализацию...*", parse_mode="Markdown")
         try:
-            reply = ask_ai("Дай технику визуализации по Невиллу Годдарду. Добавь яркие эмодзи и аффирмации для визуализации.")
+            reply = ask_ai("Дай технику визуализации по Невиллу Годдарду. Добавь яркие эмодзи и аффирмации для визуализации. Говори простым языком. Без слова 'пахота'.")
             keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("📱 В главное меню", callback_data="menu_main")]])
             await query.message.edit_text(
                 reply,
@@ -393,9 +433,9 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.message.edit_text(f"❌ Ошибка: {e}")
 
     elif data == "menu_ease_practice":
-        await query.message.edit_text("🌿 *Разбираем пахоту...*", parse_mode="Markdown")
+        await query.message.edit_text("🌿 *Разбираем напряжение...*", parse_mode="Markdown")  # Изменено
         try:
-            reply = ask_ai("Объясни, почему пахота противоречит метафизике. Дай упражнение и 5 аффирмаций для снятия. Яркие эмодзи.")
+            reply = ask_ai("Объясни, как выгорание и гиперконтроль мешают жить. Дай упражнение и 5 аффирмаций для расслабления. Яркие эмодзи. Говори простым языком. Без слова 'пахота'. Вместо 'пахоты' используй 'напряжение' или 'выгорание'.")
             keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("📱 В главное меню", callback_data="menu_main")]])
             await query.message.edit_text(
                 reply,
@@ -418,7 +458,7 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "menu_masterkey":
         await query.message.edit_text("🗝️ *Формирую упражнение...*", parse_mode="Markdown")
         try:
-            reply = ask_ai("Дай упражнение из Мастер-Ключа с аффирмациями для закрепления. Яркие эмодзи.")
+            reply = ask_ai("Дай упражнение из Мастер-Ключа с аффирмациями для закрепления. Яркие эмодзи. Говори простым языком. Без слова 'пахота'.")
             keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("📱 В главное меню", callback_data="menu_main")]])
             await query.message.edit_text(
                 reply,
@@ -428,30 +468,6 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             await query.message.edit_text(f"❌ Ошибка: {e}")
 
-# ============ ОБРАБОТЧИК СООБЩЕНИЙ ============
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = (
-        "🌟 *Проводник по пересборке состояния*\n\n"
-        "Привет. Я помогу тебе выйти из пахоты, тревоги и гиперконтроля.\n"
-        "Выбери направление или просто напиши, что тебя беспокоит.\n\n"
-        "📌 *Доступные команды:*\n"
-        "/subscribe - подписаться на ежедневные настройки\n"
-        "/unsubscribe - отписаться от рассылок\n"
-        "/random - случайная аффирмация"
-    )
-    if update.message:
-        await update.message.reply_text(
-            text,
-            parse_mode="Markdown",
-            reply_markup=get_main_keyboard()
-        )
-    elif update.callback_query:
-        await update.callback_query.message.edit_text(
-            text,
-            parse_mode="Markdown",
-            reply_markup=get_main_keyboard()
-        )
-
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_text = update.message.text
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
@@ -459,7 +475,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         reply = ask_ai(
             f"Пользователь пишет: \"{user_text}\"\n"
-            "Разбери мысль через метафизику. Дай яркие аффирмации для перепрограммирования. Минимум 7 аффирмаций."
+            "Разбери мысль через метафизику. Дай яркие аффирмации для перепрограммирования. Минимум 7 аффирмаций. Говори простым языком, без абстракций. Без слова 'пахота'. Если нужно, используй 'напряжение' или 'выгорание'."
         )
         keyboard = InlineKeyboardMarkup([
             [InlineKeyboardButton("📱 Главное меню", callback_data="menu_main")]
@@ -476,7 +492,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 if __name__ == '__main__':
     app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
     
-    # ДОБАВЛЕНО: новые команды
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("subscribe", subscribe))
     app.add_handler(CommandHandler("unsubscribe", unsubscribe))
@@ -485,17 +500,14 @@ if __name__ == '__main__':
     app.add_handler(CallbackQueryHandler(button_click))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     
-    # ДОБАВЛЕНО: настройка ежедневных задач
     job_queue = app.job_queue
     
     if job_queue:
-        # Утренняя рассылка в 8:00
         job_queue.run_daily(
             send_daily_affirmations,
             time=time(hour=8, minute=0, second=0)
         )
         
-        # Вечерняя рассылка в 21:00
         job_queue.run_daily(
             send_evening_reflection,
             time=time(hour=21, minute=0, second=0)
@@ -508,5 +520,5 @@ if __name__ == '__main__':
     else:
         print("⚠️ JobQueue не доступна. Ежедневные рассылки не будут работать.")
     
-    print("🌟 Бот запущен с ярким форматом!")
+    print("🌟 Бот запущен!")
     app.run_polling(drop_pending_updates=True)
