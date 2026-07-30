@@ -60,7 +60,7 @@ def get_manifest_keyboard():
 
 def ask_ai(prompt_text):
     response = client.models.generate_content(
-        model="gemini-3.6-flash-lite",
+        model="gemini-3.5-flash-lite",
         contents=prompt_text,
         config={"system_instruction": SYSTEM_PROMPT}
     )
