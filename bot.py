@@ -1,19 +1,21 @@
 import os
 import logging
 import json
-from datetime import datetime, time
+from datetime import time
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
-    ApplicationBuilder, CommandHandler, MessageHandler, 
-    CallbackQueryHandler, filters, ContextTypes
+    Updater, CommandHandler, MessageHandler, 
+    CallbackQueryHandler, filters, CallbackContext
 )
 from google import genai
 
-# Ключи подтягиваются из защищенных настроек Render
+# ============ НАСТРОЙКИ ============
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# Инициализируем клиента Gemini
+if not TELEGRAM_BOT_TOKEN or not GEMINI_API_KEY:
+    raise ValueError("❌ Ошибка: Не найдены переменные окружения TELEGRAM_BOT_TOKEN или GEMINI_API_KEY")
+
 client = genai.Client(api_key=GEMINI_API_KEY)
 
 logging.basicConfig(
@@ -21,26 +23,27 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-# Простое хранение подписчиков в файле (бесплатно, без БД)
+# ============ ХРАНЕНИЕ ПОДПИСЧИКОВ ============
 SUBSCRIBERS_FILE = "subscribers.json"
 
 def load_subscribers():
-    """Загружает список подписчиков из файла"""
     try:
         with open(SUBSCRIBERS_FILE, 'r') as f:
-            return set(json.load(f))
+            data = json.load(f)
+            return set(data) if isinstance(data, list) else set()
     except (FileNotFoundError, json.JSONDecodeError):
         return set()
 
 def save_subscribers(subscribers):
-    """Сохраняет список подписчиков в файл"""
-    with open(SUBSCRIBERS_FILE, 'w') as f:
-        json.dump(list(subscribers), f)
+    try:
+        with open(SUBSCRIBERS_FILE, 'w') as f:
+            json.dump(list(subscribers), f)
+    except Exception as e:
+        logging.error(f"Ошибка сохранения подписчиков: {e}")
 
-# Загружаем подписчиков при старте
 user_ids = load_subscribers()
 
-# Обновленный SYSTEM_PROMPT
+# ============ SYSTEM PROMPT ============
 SYSTEM_PROMPT = """
 Ты — фундаментальный наставник по работе с мышлением, законами внимания, визуализации и метафизике реального присутствия.
 
@@ -92,6 +95,7 @@ SYSTEM_PROMPT = """
 - Текст должен быть РИТМИЧНЫМ для легкого запоминания
 """
 
+# ============ КЛАВИАТУРЫ ============
 def get_main_keyboard():
     keyboard = [
         [InlineKeyboardButton("✨ Настройки & Манифестации", callback_data="menu_manifest")],
@@ -113,15 +117,19 @@ def get_manifest_keyboard():
     ]
     return InlineKeyboardMarkup(keyboard)
 
+# ============ ФУНКЦИИ AI ============
 def ask_ai(prompt_text):
-    response = client.models.generate_content(
-        model="gemini-3.6-flash",
-        contents=prompt_text,
-        config={"system_instruction": SYSTEM_PROMPT}
-    )
-    return response.text
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.0-flash-exp",
+            contents=prompt_text,
+            config={"system_instruction": SYSTEM_PROMPT}
+        )
+        return response.text
+    except Exception as e:
+        logging.error(f"Ошибка Gemini API: {e}")
+        return "⚠️ Извините, произошла ошибка при обращении к AI. Попробуйте позже."
 
-# ФУНКЦИИ ДЛЯ ЕЖЕДНЕВНЫХ НАСТРОЕК
 def get_morning_affirmation():
     prompt = """
     Создай мощную утреннюю настройку на день.
@@ -157,8 +165,8 @@ def get_random_affirmation():
     """
     return ask_ai(prompt)
 
-# КОМАНДЫ
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# ============ КОМАНДЫ ============
+def start(update: Update, context: CallbackContext):
     text = (
         "🌟 *Проводник по пересборке состояния*\n\n"
         "Привет! Я помогу тебе выйти из пахоты, тревоги и гиперконтроля.\n\n"
@@ -175,50 +183,43 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🚫 Отписаться: /unsubscribe"
     )
     
-    if update.message:
-        await update.message.reply_text(
-            text,
-            parse_mode="Markdown",
-            reply_markup=get_main_keyboard()
-        )
-    elif update.callback_query:
-        await update.callback_query.message.edit_text(
-            text,
-            parse_mode="Markdown",
-            reply_markup=get_main_keyboard()
-        )
+    update.message.reply_text(
+        text,
+        parse_mode="Markdown",
+        reply_markup=get_main_keyboard()
+    )
 
-async def subscribe(update: Update, context: ContextTypes.DEFAULT_TYPE):
+def subscribe(update: Update, context: CallbackContext):
     user_id = update.effective_user.id
     user_ids.add(user_id)
     save_subscribers(user_ids)
     
-    await update.message.reply_text(
+    update.message.reply_text(
         "✅ *Ты подписан на ежедневные настройки!*\n\n"
         "🌅 В 8:00 я буду присылать утреннюю настройку.\n"
         "🌙 В 21:00 я буду присылать вечернюю рефлексию.\n\n"
-        "💡 /random - случайная аффирмация в любое время\n"
-        "🚫 /unsubscribe - отписаться от рассылок",
+        "💡 /random - случайная аффирмация\n"
+        "🚫 /unsubscribe - отписаться",
         parse_mode="Markdown"
     )
 
-async def unsubscribe(update: Update, context: ContextTypes.DEFAULT_TYPE):
+def unsubscribe(update: Update, context: CallbackContext):
     user_id = update.effective_user.id
     if user_id in user_ids:
         user_ids.remove(user_id)
         save_subscribers(user_ids)
     
-    await update.message.reply_text(
+    update.message.reply_text(
         "❌ Ты отписан от ежедневных рассылок.\n\n"
         "💡 /subscribe - подписаться снова",
         parse_mode="Markdown"
     )
 
-async def random_affirmation(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🎲 *Генерирую случайную аффирмацию...*", parse_mode="Markdown")
+def random_affirmation(update: Update, context: CallbackContext):
+    update.message.reply_text("🎲 *Генерирую случайную аффирмацию...*", parse_mode="Markdown")
     try:
         reply = get_random_affirmation()
-        await update.message.reply_text(
+        update.message.reply_text(
             reply,
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup([
@@ -227,11 +228,10 @@ async def random_affirmation(update: Update, context: ContextTypes.DEFAULT_TYPE)
             ])
         )
     except Exception as e:
-        await update.message.reply_text(f"❌ Ошибка: {e}")
+        update.message.reply_text(f"❌ Ошибка: {e}")
 
-# ФУНКЦИИ РАССЫЛКИ
-async def send_daily_affirmations(context: ContextTypes.DEFAULT_TYPE):
-    """Утренняя рассылка"""
+# ============ РАССЫЛКИ ============
+def send_daily_affirmations(context: CallbackContext):
     if not user_ids:
         return
     
@@ -239,7 +239,7 @@ async def send_daily_affirmations(context: ContextTypes.DEFAULT_TYPE):
     
     for user_id in list(user_ids):
         try:
-            await context.bot.send_message(
+            context.bot.send_message(
                 chat_id=user_id,
                 text=f"🌅 *ДОБРОЕ УТРО! НАСТРОЙКА НА ДЕНЬ*\n\n{morning_text}",
                 parse_mode="Markdown",
@@ -252,9 +252,10 @@ async def send_daily_affirmations(context: ContextTypes.DEFAULT_TYPE):
             if "bot was blocked" in str(e) or "user is deactivated" in str(e):
                 user_ids.discard(user_id)
                 save_subscribers(user_ids)
+            else:
+                logging.error(f"Ошибка отправки пользователю {user_id}: {e}")
 
-async def send_evening_reflection(context: ContextTypes.DEFAULT_TYPE):
-    """Вечерняя рассылка"""
+def send_evening_reflection(context: CallbackContext):
     if not user_ids:
         return
     
@@ -262,7 +263,7 @@ async def send_evening_reflection(context: ContextTypes.DEFAULT_TYPE):
     
     for user_id in list(user_ids):
         try:
-            await context.bot.send_message(
+            context.bot.send_message(
                 chat_id=user_id,
                 text=f"🌙 *ВЕЧЕРНЯЯ РЕФЛЕКСИЯ*\n\n{evening_text}",
                 parse_mode="Markdown",
@@ -275,18 +276,39 @@ async def send_evening_reflection(context: ContextTypes.DEFAULT_TYPE):
             if "bot was blocked" in str(e) or "user is deactivated" in str(e):
                 user_ids.discard(user_id)
                 save_subscribers(user_ids)
+            else:
+                logging.error(f"Ошибка отправки пользователю {user_id}: {e}")
 
-# ОБРАБОТЧИКИ КНОПОК
-async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# ============ ОБРАБОТЧИК КНОПОК ============
+def button_click(update: Update, context: CallbackContext):
     query = update.callback_query
-    await query.answer()
+    query.answer()
     data = query.data
 
     if data == "menu_main":
-        await start(update, context)
+        text = (
+            "🌟 *Проводник по пересборке состояния*\n\n"
+            "Привет! Я помогу тебе выйти из пахоты, тревоги и гиперконтроля.\n\n"
+            "📌 *Мои возможности:*\n"
+            "✨ Настройки и манифестации\n"
+            "👁️ Практики визуализации\n"
+            "🌿 Снятие пахоты и тревоги\n"
+            "🗝️ Упражнения из Мастер-Ключа\n\n"
+            "🔥 *Ежедневная поддержка:*\n"
+            "🌅 Утренняя настройка в 8:00\n"
+            "🌙 Вечерняя рефлексия в 21:00\n"
+            "🎲 Случайная аффирмация: /random\n\n"
+            "💡 Подпишись на ежедневные настройки: /subscribe\n"
+            "🚫 Отписаться: /unsubscribe"
+        )
+        query.message.edit_text(
+            text,
+            parse_mode="Markdown",
+            reply_markup=get_main_keyboard()
+        )
     
     elif data == "menu_daily":
-        await query.message.edit_text(
+        query.message.edit_text(
             "📅 *Ежедневные настройки*\n\n"
             "🌅 Утро: настройка на день в 8:00\n"
             "🌙 Вечер: рефлексия в 21:00\n\n"
@@ -304,7 +326,7 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_id = update.effective_user.id
         user_ids.add(user_id)
         save_subscribers(user_ids)
-        await query.message.edit_text(
+        query.message.edit_text(
             "✅ *Ты подписан на ежедневные настройки!*",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup([
@@ -317,7 +339,7 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if user_id in user_ids:
             user_ids.remove(user_id)
             save_subscribers(user_ids)
-        await query.message.edit_text(
+        query.message.edit_text(
             "❌ *Ты отписан от рассылок*",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup([
@@ -328,7 +350,7 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "random_affirmation":
         try:
             reply = get_random_affirmation()
-            await query.message.edit_text(
+            query.message.edit_text(
                 reply,
                 parse_mode="Markdown",
                 reply_markup=InlineKeyboardMarkup([
@@ -337,12 +359,12 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 ])
             )
         except Exception as e:
-            await query.message.edit_text(f"❌ Ошибка: {e}")
+            query.message.edit_text(f"❌ Ошибка: {e}")
     
     elif data == "refresh_morning":
         try:
             reply = get_morning_affirmation()
-            await query.message.edit_text(
+            query.message.edit_text(
                 f"🌅 *ОБНОВЛЕННАЯ НАСТРОЙКА*\n\n{reply}",
                 parse_mode="Markdown",
                 reply_markup=InlineKeyboardMarkup([
@@ -351,12 +373,12 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 ])
             )
         except Exception as e:
-            await query.message.edit_text(f"❌ Ошибка: {e}")
+            query.message.edit_text(f"❌ Ошибка: {e}")
     
     elif data == "refresh_evening":
         try:
             reply = get_evening_reflection()
-            await query.message.edit_text(
+            query.message.edit_text(
                 f"🌙 *ОБНОВЛЕННАЯ РЕФЛЕКСИЯ*\n\n{reply}",
                 parse_mode="Markdown",
                 reply_markup=InlineKeyboardMarkup([
@@ -365,11 +387,10 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 ])
             )
         except Exception as e:
-            await query.message.edit_text(f"❌ Ошибка: {e}")
-
-    # ... остальные обработчики меню ...
+            query.message.edit_text(f"❌ Ошибка: {e}")
+    
     elif data == "menu_manifest":
-        await query.message.edit_text(
+        query.message.edit_text(
             "🎯 *Выбери тему для настройки:*",
             parse_mode="Markdown",
             reply_markup=get_manifest_keyboard()
@@ -384,7 +405,7 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
         }
         prompt = theme_map.get(data, "Сформируй манифестацию.")
         
-        await query.message.edit_text("🎯 *Формирую мощную настройку...*", parse_mode="Markdown")
+        query.message.edit_text("🎯 *Формирую мощную настройку...*", parse_mode="Markdown")
         
         try:
             reply = ask_ai(prompt)
@@ -392,42 +413,42 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 [InlineKeyboardButton("🔄 Обновить", callback_data=data)],
                 [InlineKeyboardButton("📱 В главное меню", callback_data="menu_main")]
             ])
-            await query.message.edit_text(
+            query.message.edit_text(
                 reply,
                 parse_mode="Markdown",
                 reply_markup=keyboard
             )
         except Exception as e:
-            await query.message.edit_text(f"❌ Ошибка: {e}")
+            query.message.edit_text(f"❌ Ошибка: {e}")
 
     elif data == "menu_visualize":
-        await query.message.edit_text("👁️ *Готовлю визуализацию...*", parse_mode="Markdown")
+        query.message.edit_text("👁️ *Готовлю визуализацию...*", parse_mode="Markdown")
         try:
             reply = ask_ai("Дай технику визуализации по Невиллу Годдарду. Добавь яркие эмодзи и аффирмации для визуализации.")
             keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("📱 В главное меню", callback_data="menu_main")]])
-            await query.message.edit_text(
+            query.message.edit_text(
                 reply,
                 parse_mode="Markdown",
                 reply_markup=keyboard
             )
         except Exception as e:
-            await query.message.edit_text(f"❌ Ошибка: {e}")
+            query.message.edit_text(f"❌ Ошибка: {e}")
 
     elif data == "menu_ease_practice":
-        await query.message.edit_text("🌿 *Разбираем пахоту...*", parse_mode="Markdown")
+        query.message.edit_text("🌿 *Разбираем пахоту...*", parse_mode="Markdown")
         try:
             reply = ask_ai("Объясни, почему пахота противоречит метафизике. Дай упражнение и 5 аффирмаций для снятия. Яркие эмодзи.")
             keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("📱 В главное меню", callback_data="menu_main")]])
-            await query.message.edit_text(
+            query.message.edit_text(
                 reply,
                 parse_mode="Markdown",
                 reply_markup=keyboard
             )
         except Exception as e:
-            await query.message.edit_text(f"❌ Ошибка: {e}")
+            query.message.edit_text(f"❌ Ошибка: {e}")
 
     elif data == "menu_mindset":
-        await query.message.edit_text(
+        query.message.edit_text(
             "🧠 *Напиши мне, что тебя сейчас ограничивает.*\n\n"
             "Я дам аффирмации для перепрограммирования.",
             parse_mode="Markdown",
@@ -437,21 +458,22 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
     elif data == "menu_masterkey":
-        await query.message.edit_text("🗝️ *Формирую упражнение...*", parse_mode="Markdown")
+        query.message.edit_text("🗝️ *Формирую упражнение...*", parse_mode="Markdown")
         try:
             reply = ask_ai("Дай упражнение из Мастер-Ключа с аффирмациями для закрепления. Яркие эмодзи.")
             keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("📱 В главное меню", callback_data="menu_main")]])
-            await query.message.edit_text(
+            query.message.edit_text(
                 reply,
                 parse_mode="Markdown",
                 reply_markup=keyboard
             )
         except Exception as e:
-            await query.message.edit_text(f"❌ Ошибка: {e}")
+            query.message.edit_text(f"❌ Ошибка: {e}")
 
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# ============ ОБРАБОТЧИК СООБЩЕНИЙ ============
+def handle_message(update: Update, context: CallbackContext):
     user_text = update.message.text
-    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+    context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
     
     try:
         reply = ask_ai(
@@ -461,48 +483,54 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard = InlineKeyboardMarkup([
             [InlineKeyboardButton("📱 Главное меню", callback_data="menu_main")]
         ])
-        await update.message.reply_text(
+        update.message.reply_text(
             reply,
             parse_mode="Markdown",
             reply_markup=keyboard
         )
     except Exception as e:
-        await update.message.reply_text(f"❌ Ошибка: {e}")
+        update.message.reply_text(f"❌ Ошибка: {e}")
 
+# ============ ЗАПУСК ============
 if __name__ == '__main__':
-    app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
-    
-    # Добавляем обработчики
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("subscribe", subscribe))
-    app.add_handler(CommandHandler("unsubscribe", unsubscribe))
-    app.add_handler(CommandHandler("random", random_affirmation))
-    
-    app.add_handler(CallbackQueryHandler(button_click))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    
-    # 🕐 НАСТРАИВАЕМ ЕЖЕДНЕВНЫЕ РАССЫЛКИ
-    job_queue = app.job_queue
-    
-    if job_queue:
-        # Утренняя рассылка в 8:00
-        job_queue.run_daily(
-            send_daily_affirmations,
-            time=time(hour=8, minute=0, second=0)
-        )
+    try:
+        updater = Updater(token=TELEGRAM_BOT_TOKEN, use_context=True)
+        dp = updater.dispatcher
         
-        # Вечерняя рассылка в 21:00
-        job_queue.run_daily(
-            send_evening_reflection,
-            time=time(hour=21, minute=0, second=0)
-        )
+        # Добавляем обработчики
+        dp.add_handler(CommandHandler("start", start))
+        dp.add_handler(CommandHandler("subscribe", subscribe))
+        dp.add_handler(CommandHandler("unsubscribe", unsubscribe))
+        dp.add_handler(CommandHandler("random", random_affirmation))
         
-        print("🌟 Бот запущен с ежедневными настройками!")
-        print(f"📊 Подписчиков: {len(user_ids)}")
-        print("🌅 Утренняя рассылка в 8:00")
-        print("🌙 Вечерняя рассылка в 21:00")
-    else:
-        print("⚠️ JobQueue не доступна. Ежедневные рассылки не будут работать.")
-    
-    print("🤖 Бот готов к работе!")
-    app.run_polling(drop_pending_updates=True)
+        dp.add_handler(CallbackQueryHandler(button_click))
+        dp.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+        
+        # Настраиваем ежедневные рассылки
+        jq = updater.job_queue
+        
+        if jq:
+            jq.run_daily(
+                send_daily_affirmations,
+                time=time(hour=8, minute=0, second=0)
+            )
+            jq.run_daily(
+                send_evening_reflection,
+                time=time(hour=21, minute=0, second=0)
+            )
+            
+            print("🌟 Бот запущен с ежедневными настройками!")
+            print(f"📊 Подписчиков: {len(user_ids)}")
+            print("🌅 Утренняя рассылка в 8:00")
+            print("🌙 Вечерняя рассылка в 21:00")
+        else:
+            print("⚠️ JobQueue не доступна. Ежедневные рассылки не будут работать.")
+        
+        print("🤖 Бот готов к работе!")
+        
+        updater.start_polling()
+        updater.idle()
+        
+    except Exception as e:
+        logging.error(f"Ошибка при запуске бота: {e}")
+        raise
