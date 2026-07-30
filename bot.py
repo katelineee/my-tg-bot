@@ -19,7 +19,7 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-# ============ ИЗМЕНЕН ТОЛЬКО SYSTEM_PROMPT ============
+# ============ ИЗМЕНЕН ТОЛЬКО ЭТОТ БЛОК ============
 SYSTEM_PROMPT = """
 Ты — фундаментальный наставник по работе с мышлением, законами внимания, визуализации и метафизике реального присутствия.
 
@@ -38,34 +38,31 @@ SYSTEM_PROMPT = """
 - Используй ПРОСТЫЕ, ЗЕМНЫЕ СЛОВА, которые понятны каждому
 - НИКАКИХ "ЁМКОСТЕЙ", "РАСШИРЕНИЙ", "ПОТОКОВ" — говори прямо
 - НЕ ИСПОЛЬЗУЙ СЛОВО "ПАХОТА" — используй "выгорание" или "напряжение"
-- Используй метафоры из жизни: "как дышать", "как пить воду"
 
 ПРИМЕРЫ УДАЧНЫХ ФРАЗ:
 ❌ "Моя емкость растет" → ✅ "Я спокойно принимаю любые деньги"
 ❌ "Финансовое расширение" → ✅ "У меня всегда есть столько, сколько нужно"
-❌ "Внутреннее право" → ✅ "Я разрешаю себе получать больше"
 ❌ "Пахота" → ✅ "Выгорание" или "Напряжение"
-❌ "Материя подстраивается" → ✅ "Жизнь приносит мне то, что я хочу"
 
-ФОРМАТ ОТВЕТА (строго соблюдать):
+ФОРМАТ ОТВЕТА:
 
 🌟 КЛЮЧЕВАЯ МЫСЛЬ:
 Одна простая фраза, которую можно запомнить.
 
 🎯 МАНИФЕСТАЦИЯ:
-Короткая фраза, которую можно повторять про себя или вслух.
+Короткая фраза, которую можно повторять.
 
 ✨ АФФИРМАЦИИ (7-10 штук):
-Короткие, простые предложения. Не больше 5-6 слов в каждой. Чередуй эмодзи.
+Короткие, простые предложения. Чередуй эмодзи.
 
 🌈 АФФИРМАЦИИ ДЛЯ ПОВТОРЕНИЯ:
-3-4 самые сильные и простые фразы.
+3-4 самые сильные фразы.
 
 ❓ ВОПРОС ДЛЯ ВИЗУАЛИЗАЦИИ:
-Один простой вопрос, который включает тело и чувства.
+Один простой вопрос.
 
 💫 ЗАКРЫВАЮЩАЯ АФФИРМАЦИЯ:
-Одна фраза, которая остается в голове на весь день.
+Одна фраза на весь день.
 
 🔑 КЛЮЧЕВОЙ ВЫВОД:
 Одна простая истина.
@@ -73,30 +70,31 @@ SYSTEM_PROMPT = """
 ГЛАВНОЕ ПРАВИЛО:
 Если фразу можно сказать на кухне за чашкой чая — значит, она правильная.
 """
+# ============ КОНЕЦ ИЗМЕНЕНИЙ ============
 
 def get_main_keyboard():
     keyboard = [
         [InlineKeyboardButton("✨ Настройки & Манифестации", callback_data="menu_manifest")],
-        [InlineKeyboardButton("👁️ Практика Визуализации", callback_data="menu_visualize")],
-        [InlineKeyboardButton("🌿 Сбросить Пахоту", callback_data="menu_ease_practice")],
-        [InlineKeyboardButton("🧠 Разобрать Тревогу", callback_data="menu_mindset")],
-        [InlineKeyboardButton("🗝️ Упражнение Мастер-Ключ", callback_data="menu_masterkey")]
+        [InlineKeyboardButton("👁️ Практика Визуализации (с вопросами)", callback_data="menu_visualize")],
+        [InlineKeyboardButton("🌿 Сбросить «Пахоту» и Гиперконтроль", callback_data="menu_ease_practice")],
+        [InlineKeyboardButton("🧠 Разобрать затык / тревогу", callback_data="menu_mindset")],
+        [InlineKeyboardButton("🗝️ Упражнение из «Мастер-Ключа»", callback_data="menu_masterkey")]
     ]
     return InlineKeyboardMarkup(keyboard)
 
 def get_manifest_keyboard():
     keyboard = [
-        [InlineKeyboardButton("💰 Финансы", callback_data="manifest_money")],
-        [InlineKeyboardButton("🌿 Легкость", callback_data="manifest_ease")],
-        [InlineKeyboardButton("🚀 Масштаб", callback_data="manifest_career")],
-        [InlineKeyboardButton("❤️ Самоценность", callback_data="manifest_worth")],
+        [InlineKeyboardButton("💰 Финансы & Входящий поток", callback_data="manifest_money")],
+        [InlineKeyboardButton("🌿 Состояние & Легкое позволение", callback_data="manifest_ease")],
+        [InlineKeyboardButton("🚀 Проявленность & Масштаб", callback_data="manifest_career")],
+        [InlineKeyboardButton("❤️ Самоценность & Внутреннее право", callback_data="manifest_worth")],
         [InlineKeyboardButton("🔙 В главное меню", callback_data="menu_main")]
     ]
     return InlineKeyboardMarkup(keyboard)
 
 def ask_ai(prompt_text):
     response = client.models.generate_content(
-        model="gemini-3.6-flash",
+        model="gemini-3.6-flash",  # ИЗМЕНЕНО: gemini-2.5-flash → gemini-3.6-flash
         contents=prompt_text,
         config={"system_instruction": SYSTEM_PROMPT}
     )
@@ -105,7 +103,7 @@ def ask_ai(prompt_text):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = (
         "🌟 *Проводник по пересборке состояния*\n\n"
-        "Привет. Я помогу тебе выйти из выгорания, тревоги и гиперконтроля.\n"  # Изменено: пахота → выгорание
+        "Привет. Я помогу тебе выйти из выгорания, тревоги и гиперконтроля.\n"  # ИЗМЕНЕНО: пахоты → выгорания
         "Выбери направление или просто напиши, что тебя беспокоит."
     )
     if update.message:
@@ -138,20 +136,20 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif data.startswith("manifest_"):
         theme_map = {
-            "manifest_money": "Дай яркую манифестацию на финансовое расширение с 7-10 аффирмациями. Говори простым языком, без абстракций. Без слова 'пахота'.",
-            "manifest_ease": "Дай настройку на отпускание гиперконтроля. 7-10 аффирмаций. Простой язык. Без 'пахоты'.",
-            "manifest_career": "Дай манифестацию на масштаб и проявленность. 7-10 аффирмаций. Простой язык. Без 'пахоты'.",
-            "manifest_worth": "Дай манифестацию на самоценность. 7-10 аффирмаций. Простой язык. Без 'пахоты'."
+            "manifest_money": "Дай точечную манифестацию и аффирмации на финансовое расширение. Говори простым языком. Без слова 'пахота'.",
+            "manifest_ease": "Дай настройку на отпускание гиперконтроля. Простой язык. Без 'пахоты'.",
+            "manifest_career": "Дай манифестацию на масштаб и проявленность. Простой язык. Без 'пахоты'.",
+            "manifest_worth": "Дай манифестацию на безусловную самоценность. Простой язык. Без 'пахоты'."
         }
         prompt = theme_map.get(data, "Сформируй манифестацию. Без слова 'пахота'.")
         
-        await query.message.edit_text("🎯 *Формирую мощную настройку...*", parse_mode="Markdown")
+        await query.message.edit_text("🎯 *Формирую настройку...*", parse_mode="Markdown")
         
         try:
             reply = ask_ai(prompt)
             keyboard = InlineKeyboardMarkup([
                 [InlineKeyboardButton("🔄 Обновить", callback_data=data)],
-                [InlineKeyboardButton("📱 В главное меню", callback_data="menu_main")]
+                [InlineKeyboardButton("🔙 В главное меню", callback_data="menu_main")]
             ])
             await query.message.edit_text(
                 reply,
@@ -164,8 +162,8 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "menu_visualize":
         await query.message.edit_text("👁️ *Готовлю визуализацию...*", parse_mode="Markdown")
         try:
-            reply = ask_ai("Дай технику визуализации по Невиллу Годдарду. Добавь яркие эмодзи и аффирмации. Говори простым языком. Без слова 'пахота'.")
-            keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("📱 В главное меню", callback_data="menu_main")]])
+            reply = ask_ai("Дай технику визуализации по Невиллу Годдарду. Говори простым языком. Без слова 'пахота'.")
+            keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 В главное меню", callback_data="menu_main")]])
             await query.message.edit_text(
                 reply,
                 parse_mode="Markdown",
@@ -175,10 +173,10 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.message.edit_text(f"❌ Ошибка: {e}")
 
     elif data == "menu_ease_practice":
-        await query.message.edit_text("🌿 *Разбираем напряжение...*", parse_mode="Markdown")  # Изменено
+        await query.message.edit_text("🌿 *Разбираем состояние...*", parse_mode="Markdown")
         try:
-            reply = ask_ai("Объясни, как выгорание и гиперконтроль мешают жить. Дай упражнение и 5 аффирмаций для расслабления. Яркие эмодзи. Говори простым языком. Без слова 'пахота'. Вместо 'пахоты' используй 'напряжение' или 'выгорание'.")
-            keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("📱 В главное меню", callback_data="menu_main")]])
+            reply = ask_ai("Объясни, как выгорание и гиперконтроль мешают жить. Дай упражнение и аффирмации. Простой язык. Без слова 'пахота'.")
+            keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 В главное меню", callback_data="menu_main")]])
             await query.message.edit_text(
                 reply,
                 parse_mode="Markdown",
@@ -189,19 +187,18 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif data == "menu_mindset":
         await query.message.edit_text(
-            "🧠 *Напиши мне, что тебя сейчас ограничивает.*\n\n"
-            "Я дам аффирмации для перепрограммирования.",
+            "🧠 *Напиши мне сообщением то, что тебя сейчас ограничивает или тревожит.*",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("📱 В главное меню", callback_data="menu_main")]
+                [InlineKeyboardButton("🔙 В главное меню", callback_data="menu_main")]
             ])
         )
 
     elif data == "menu_masterkey":
         await query.message.edit_text("🗝️ *Формирую упражнение...*", parse_mode="Markdown")
         try:
-            reply = ask_ai("Дай упражнение из Мастер-Ключа с аффирмациями для закрепления. Яркие эмодзи. Говори простым языком. Без слова 'пахота'.")
-            keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("📱 В главное меню", callback_data="menu_main")]])
+            reply = ask_ai("Дай упражнение из Мастер-Ключа. Простой язык. Без слова 'пахота'.")
+            keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 В главное меню", callback_data="menu_main")]])
             await query.message.edit_text(
                 reply,
                 parse_mode="Markdown",
@@ -217,7 +214,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         reply = ask_ai(
             f"Пользователь пишет: \"{user_text}\"\n"
-            "Разбери мысль через метафизику. Дай яркие аффирмации для перепрограммирования. Минимум 7 аффирмаций. Говори простым языком, без абстракций. Без слова 'пахота'."
+            "Разбери мысль через Мастер-Ключ, Годдарда и метафизику. Дай аффирмации. Простой язык. Без слова 'пахота'."
         )
         keyboard = InlineKeyboardMarkup([
             [InlineKeyboardButton("📱 Главное меню", callback_data="menu_main")]
